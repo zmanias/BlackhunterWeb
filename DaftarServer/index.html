@@ -3,19 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daftar Server Panel</title>
+    <title>Daftar & Hapus Server Panel</title>
     <!-- Memuat Tailwind CSS untuk styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Memuat Font Inter dari Google Fonts -->
+    <!-- Memuat Font Inter dan JetBrains Mono dari Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
-        /* Menggunakan font Inter sebagai default */
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Style untuk spinner loading */
+        body { font-family: 'Inter', sans-serif; }
         .loader {
             border: 5px solid #f3f3f3;
             border-radius: 50%;
@@ -24,47 +20,53 @@
             height: 50px;
             animation: spin 1.5s linear infinite;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        /* Style untuk modal konfirmasi */
-        .modal-backdrop {
-            transition: opacity 0.3s ease;
-        }
-        .modal-content {
-            transition: transform 0.3s ease;
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        pre { font-family: 'JetBrains Mono', monospace; }
+        .modal-backdrop { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease; }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen p-4 sm:p-6 lg:p-8">
 
     <div class="max-w-4xl mx-auto">
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-white">Daftar Server Panel</h1>
-            <button id="refresh-button" class="p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors">
+            <h1 class="text-3xl font-bold text-white">Kelola Server Panel</h1>
+            <button id="refresh-button" class="p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors" title="Muat Ulang Daftar">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
             </button>
         </div>
 
-        <!-- Kontainer untuk status, error, dan daftar server -->
-        <div id="status-container">
-            <!-- Indikator Loading -->
-            <div id="loading-indicator" class="text-center py-10">
-                <div class="loader mx-auto"></div>
-                <p class="mt-4 text-lg text-gray-400">Memuat daftar server...</p>
+        <!-- Kontainer utama untuk daftar dan form hapus -->
+        <div class="bg-gray-800 rounded-xl shadow-lg">
+            <!-- Bagian Daftar Server -->
+            <div class="p-6">
+                <h2 class="text-xl font-semibold mb-4">Daftar Server Aktif</h2>
+                <div id="loading-indicator" class="text-center py-10">
+                    <div class="loader mx-auto"></div>
+                    <p class="mt-4 text-lg text-gray-400">Memuat daftar server...</p>
+                </div>
+                <div id="error-container" class="hidden text-center">
+                     <h3 class="text-lg font-semibold text-red-400">Terjadi Kesalahan</h3>
+                     <p id="error-message" class="text-red-300 mt-1"></p>
+                </div>
+                <div id="result-container" class="hidden bg-gray-900 p-4 rounded-md">
+                     <pre id="server-list-content" class="text-sm text-gray-200 whitespace-pre-wrap break-words"></pre>
+                </div>
             </div>
-            <!-- Pesan Error -->
-            <div id="error-message" class="hidden bg-red-900 border border-red-700 p-4 rounded-lg text-center"></div>
-             <!-- Pesan Tidak Ada Server -->
-            <div id="empty-message" class="hidden text-center py-10">
-                <p class="text-lg text-gray-500">Tidak ada server yang ditemukan.</p>
+
+            <!-- Garis Pemisah -->
+            <hr class="border-gray-700">
+
+            <!-- Bagian Hapus Server -->
+            <div class="p-6">
+                <h2 class="text-xl font-semibold mb-4">Hapus Server (Bisa Multi-ID)</h2>
+                <form id="delete-form" class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="delete-id-input" placeholder="Masukkan ID, pisahkan dengan koma (cth: 5,6,7)" required class="flex-grow w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 transition">
+                    <button type="submit" class="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 rounded-md font-semibold transition-colors duration-300">
+                        Hapus Server
+                    </button>
+                </form>
             </div>
-        </div>
-        
-        <!-- Grid untuk daftar server -->
-        <div id="server-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Kartu server akan dimasukkan di sini oleh JavaScript -->
         </div>
     </div>
 
@@ -81,29 +83,29 @@
     </div>
     
     <!-- Notifikasi Toast -->
-    <div id="toast-notification" class="hidden fixed bottom-5 right-5 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300">
-        Pesan notifikasi
-    </div>
+    <div id="toast-notification" class="hidden fixed bottom-5 right-5 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300"></div>
 
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- Referensi Elemen DOM ---
-        const serverListContainer = document.getElementById('server-list-container');
         const loadingIndicator = document.getElementById('loading-indicator');
+        const errorContainer = document.getElementById('error-container');
         const errorMessage = document.getElementById('error-message');
-        const emptyMessage = document.getElementById('empty-message');
+        const resultContainer = document.getElementById('result-container');
+        const serverListContent = document.getElementById('server-list-content');
         const refreshButton = document.getElementById('refresh-button');
+        const deleteForm = document.getElementById('delete-form');
+        const deleteIdInput = document.getElementById('delete-id-input');
         
         const deleteModal = document.getElementById('delete-modal');
-        const modalBackdrop = deleteModal.querySelector('.modal-backdrop');
-        const modalContent = deleteModal.querySelector('.modal-content');
         const modalText = document.getElementById('modal-text');
         const cancelDeleteBtn = document.getElementById('cancel-delete');
         const confirmDeleteBtn = document.getElementById('confirm-delete');
-
         const toast = document.getElementById('toast-notification');
-        let serverIdToDelete = null;
+        
+        // Variabel untuk menyimpan string ID yang akan dihapus
+        let serverIdsToDelete = null;
 
         // --- Konfigurasi API ---
         const API_PARAMS = {
@@ -117,104 +119,48 @@
             toast.textContent = message;
             toast.className = `fixed bottom-5 right-5 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ${isError ? 'bg-red-600' : 'bg-green-600'}`;
             toast.classList.remove('hidden');
-            setTimeout(() => {
-                toast.classList.add('hidden');
-            }, 3000);
-        }
-
-        // --- Fungsi untuk mem-parsing pesan dari API menjadi array objek server ---
-        function parseServerMessage(message) {
-            if (!message || typeof message !== 'string') return [];
-            
-            // Memisahkan setiap blok server berdasarkan baris kosong
-            const serverBlocks = message.trim().split(/\n\s*\n/);
-            
-            return serverBlocks.map(block => {
-                const serverData = {};
-                const lines = block.trim().split('\n');
-                
-                lines.forEach(line => {
-                    const parts = line.split(' : ');
-                    if (parts.length === 2) {
-                        // Membersihkan kunci dari emoji dan spasi
-                        const key = parts[0].replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim().toLowerCase();
-                        const value = parts[1].trim();
-                        serverData[key] = value;
-                    }
-                });
-                return serverData;
-            }).filter(server => server.id); // Hanya sertakan server yang memiliki ID
-        }
-
-        // --- Fungsi untuk merender daftar server ke DOM ---
-        function renderServerList(servers) {
-            serverListContainer.innerHTML = ''; // Kosongkan kontainer
-            if (servers.length === 0) {
-                emptyMessage.classList.remove('hidden');
-                return;
-            }
-
-            servers.forEach(server => {
-                const statusColor = server.status === 'offline' ? 'text-red-400' : 'text-green-400';
-                const card = document.createElement('div');
-                card.className = 'bg-gray-800 p-5 rounded-xl shadow-lg flex flex-col justify-between transition-transform transform hover:scale-105';
-                card.innerHTML = `
-                    <div>
-                        <h2 class="text-xl font-bold text-white mb-3 truncate">${server.nama || 'Tanpa Nama'}</h2>
-                        <div class="space-y-2 text-sm text-gray-300">
-                            <p><strong>ID:</strong> ${server.id}</p>
-                            <p><strong>RAM:</strong> ${server.ram}</p>
-                            <p><strong>Disk:</strong> ${server.disk}</p>
-                            <p><strong>CPU:</strong> ${server.cpu}</p>
-                            <p><strong>Dibuat:</strong> ${server.created}</p>
-                            <p><strong>Status:</strong> <span class="font-semibold ${statusColor}">${server.status}</span></p>
-                        </div>
-                    </div>
-                    <button data-id="${server.id}" data-name="${server.nama || 'Tanpa Nama'}" class="delete-btn mt-4 w-full py-2 bg-red-600 hover:bg-red-700 rounded-md font-semibold transition-colors">
-                        Hapus Server
-                    </button>
-                `;
-                serverListContainer.appendChild(card);
-            });
+            setTimeout(() => { toast.classList.add('hidden'); }, 5000); // Durasi lebih lama untuk pesan detail
         }
 
         // --- Fungsi utama untuk mengambil dan menampilkan data ---
         async function fetchAndDisplayServers() {
             loadingIndicator.classList.remove('hidden');
-            errorMessage.classList.add('hidden');
-            emptyMessage.classList.add('hidden');
-            serverListContainer.innerHTML = '';
+            errorContainer.classList.add('hidden');
+            resultContainer.classList.add('hidden');
             
             const listUrl = new URL('https://api.fandirr.my.id/panel/listpanel');
             Object.keys(API_PARAMS).forEach(key => listUrl.searchParams.append(key, API_PARAMS[key]));
 
             try {
                 const response = await fetch(listUrl);
-                if (!response.ok) {
-                    throw new Error(`Gagal mengambil data: ${response.statusText}`);
-                }
                 const data = await response.json();
-                
-                if (data.message) {
-                    const servers = parseServerMessage(data.message);
-                    renderServerList(servers);
+                if (!response.ok) throw new Error(data.message || `Gagal mengambil data (Status: ${response.status})`);
+                if (data && data.message && data.message.trim() !== "") {
+                    serverListContent.textContent = data.message;
+                    resultContainer.classList.remove('hidden');
                 } else {
-                    throw new Error('Format respon tidak valid.');
+                    throw new Error('API tidak mengembalikan daftar server atau daftar kosong.');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                errorMessage.textContent = `Terjadi kesalahan: ${error.message}`;
-                errorMessage.classList.remove('hidden');
+                console.error('Error fetching list:', error);
+                errorMessage.textContent = error.message;
+                errorContainer.classList.remove('hidden');
             } finally {
                 loadingIndicator.classList.add('hidden');
             }
         }
 
-        // --- Fungsi untuk menangani penghapusan server ---
-        async function handleDelete(serverId) {
-            const deleteUrl = new URL('https://api.fandirr.my.id/panel/delpanel');
+        /**
+         * --- FUNGSI HAPUS YANG DIPERBARUI ---
+         * Menggunakan endpoint dan parameter baru untuk multi-ID.
+         * Memberikan notifikasi yang lebih detail.
+         */
+        async function handleDelete(serverIds) {
+            // Endpoint baru untuk menghapus multi-ID
+            const deleteUrl = new URL('https://api.fandirr.my.id/panel/hapusserverid');
             Object.keys(API_PARAMS).forEach(key => deleteUrl.searchParams.append(key, API_PARAMS[key]));
-            deleteUrl.searchParams.append('id', serverId);
+            // Parameter baru 'only' dengan nilai string ID yang dipisahkan koma
+            deleteUrl.searchParams.append('only', serverIds);
             
             confirmDeleteBtn.disabled = true;
             confirmDeleteBtn.textContent = 'Menghapus...';
@@ -222,11 +168,15 @@
             try {
                 const response = await fetch(deleteUrl);
                 const data = await response.json();
-                if (response.ok && data.message) {
-                    showToast(data.message);
+
+                // Cek respons sukses berdasarkan format baru
+                if (response.ok && data.totalDeleted > 0) {
+                    // Membuat pesan sukses yang detail
+                    const deletedNames = data.deleted.map(s => `${s.name} (ID: ${s.id})`).join(', ');
+                    showToast(`Berhasil menghapus ${data.totalDeleted} server: ${deletedNames}`);
                     await fetchAndDisplayServers(); // Muat ulang daftar setelah berhasil hapus
                 } else {
-                    throw new Error(data.message || 'Gagal menghapus server.');
+                    throw new Error(data.message || 'Gagal menghapus server atau tidak ada ID yang cocok.');
                 }
             } catch (error) {
                 console.error('Error saat menghapus:', error);
@@ -239,40 +189,42 @@
         }
         
         // --- Fungsi untuk membuka dan menutup modal ---
-        function openModal(id, name) {
-            serverIdToDelete = id;
-            modalText.textContent = `Apakah Anda yakin ingin menghapus server "${name}" (ID: ${id})? Tindakan ini tidak dapat diurungkan.`;
+        function openModal(ids) {
+            serverIdsToDelete = ids;
+            modalText.textContent = `Apakah Anda yakin ingin menghapus server dengan ID: ${ids}? Tindakan ini tidak dapat diurungkan.`;
             deleteModal.classList.remove('hidden');
             setTimeout(() => {
-                modalBackdrop.classList.remove('opacity-0');
-                modalContent.classList.remove('scale-95');
+                deleteModal.querySelector('.modal-backdrop').classList.remove('opacity-0');
+                deleteModal.querySelector('.modal-content').classList.remove('scale-95');
             }, 10);
         }
 
         function closeModal() {
-            modalBackdrop.classList.add('opacity-0');
-            modalContent.classList.add('scale-95');
+            deleteModal.querySelector('.modal-backdrop').classList.add('opacity-0');
+            deleteModal.querySelector('.modal-content').classList.add('scale-95');
             setTimeout(() => {
                 deleteModal.classList.add('hidden');
-                serverIdToDelete = null;
+                serverIdsToDelete = null;
             }, 300);
         }
 
         // --- Event Listeners ---
         refreshButton.addEventListener('click', fetchAndDisplayServers);
 
-        serverListContainer.addEventListener('click', (e) => {
-            if (e.target && e.target.classList.contains('delete-btn')) {
-                const id = e.target.dataset.id;
-                const name = e.target.dataset.name;
-                openModal(id, name);
+        deleteForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const ids = deleteIdInput.value.trim();
+            if (ids) {
+                openModal(ids);
+            } else {
+                showToast('Kolom ID Server tidak boleh kosong.', true);
             }
         });
 
         cancelDeleteBtn.addEventListener('click', closeModal);
         confirmDeleteBtn.addEventListener('click', () => {
-            if (serverIdToDelete) {
-                handleDelete(serverIdToDelete);
+            if (serverIdsToDelete) {
+                handleDelete(serverIdsToDelete);
             }
         });
         deleteModal.addEventListener('click', (e) => {
