@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daftar Server Panel</title>
+    <!-- Memuat Tailwind CSS untuk styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuat Font Inter dari Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Menggunakan font Inter sebagai default */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Style untuk spinner loading */
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 5px solid #3498db;
+            width: 50px;
+            height: 50px;
+            animation: spin 1.5s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style untuk modal konfirmasi */
+        .modal-backdrop {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4 sm:p-6 lg:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-white">Daftar Server Panel</h1>
+            <button id="refresh-button" class="p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+            </button>
+        </div>
+
+        <!-- Kontainer untuk status, error, dan daftar server -->
+        <div id="status-container">
+            <!-- Indikator Loading -->
+            <div id="loading-indicator" class="text-center py-10">
+                <div class="loader mx-auto"></div>
+                <p class="mt-4 text-lg text-gray-400">Memuat daftar server...</p>
+            </div>
+            <!-- Pesan Error -->
+            <div id="error-message" class="hidden bg-red-900 border border-red-700 p-4 rounded-lg text-center"></div>
+             <!-- Pesan Tidak Ada Server -->
+            <div id="empty-message" class="hidden text-center py-10">
+                <p class="text-lg text-gray-500">Tidak ada server yang ditemukan.</p>
+            </div>
+        </div>
+        
+        <!-- Grid untuk daftar server -->
+        <div id="server-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Kartu server akan dimasukkan di sini oleh JavaScript -->
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus -->
+    <div id="delete-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 modal-backdrop">
+        <div class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-sm modal-content transform scale-95">
+            <h3 class="text-xl font-bold mb-4">Konfirmasi Penghapusan</h3>
+            <p id="modal-text" class="text-gray-300 mb-6">Apakah Anda yakin ingin menghapus server ini?</p>
+            <div class="flex justify-end gap-4">
+                <button id="cancel-delete" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-md font-semibold transition-colors">Batal</button>
+                <button id="confirm-delete" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md font-semibold transition-colors">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notifikasi Toast -->
+    <div id="toast-notification" class="hidden fixed bottom-5 right-5 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300">
+        Pesan notifikasi
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Referensi Elemen DOM ---
+        const serverListContainer = document.getElementById('server-list-container');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorMessage = document.getElementById('error-message');
+        const emptyMessage = document.getElementById('empty-message');
+        const refreshButton = document.getElementById('refresh-button');
+        
+        const deleteModal = document.getElementById('delete-modal');
+        const modalBackdrop = deleteModal.querySelector('.modal-backdrop');
+        const modalContent = deleteModal.querySelector('.modal-content');
+        const modalText = document.getElementById('modal-text');
+        const cancelDeleteBtn = document.getElementById('cancel-delete');
+        const confirmDeleteBtn = document.getElementById('confirm-delete');
+
+        const toast = document.getElementById('toast-notification');
+        let serverIdToDelete = null;
+
+        // --- Konfigurasi API ---
+        const API_PARAMS = {
+            domain: 'https://kkhosting.blackhunter.my.id',
+            plta: 'ptla_r08WFvO2WkD61cRzWZGmhWvMhUtNaZYuhEjAtfwecCx',
+            pltc: 'ptlc_naQ7ukSy6H93DlMfeUPZgZ7tnQSSqWcdEwzAgwDtV8H'
+        };
+
+        // --- Fungsi untuk menampilkan notifikasi toast ---
+        function showToast(message, isError = false) {
+            toast.textContent = message;
+            toast.className = `fixed bottom-5 right-5 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ${isError ? 'bg-red-600' : 'bg-green-600'}`;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // --- Fungsi untuk mem-parsing pesan dari API menjadi array objek server ---
+        function parseServerMessage(message) {
+            if (!message || typeof message !== 'string') return [];
+            
+            // Memisahkan setiap blok server berdasarkan baris kosong
+            const serverBlocks = message.trim().split(/\n\s*\n/);
+            
+            return serverBlocks.map(block => {
+                const serverData = {};
+                const lines = block.trim().split('\n');
+                
+                lines.forEach(line => {
+                    const parts = line.split(' : ');
+                    if (parts.length === 2) {
+                        // Membersihkan kunci dari emoji dan spasi
+                        const key = parts[0].replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim().toLowerCase();
+                        const value = parts[1].trim();
+                        serverData[key] = value;
+                    }
+                });
+                return serverData;
+            }).filter(server => server.id); // Hanya sertakan server yang memiliki ID
+        }
+
+        // --- Fungsi untuk merender daftar server ke DOM ---
+        function renderServerList(servers) {
+            serverListContainer.innerHTML = ''; // Kosongkan kontainer
+            if (servers.length === 0) {
+                emptyMessage.classList.remove('hidden');
+                return;
+            }
+
+            servers.forEach(server => {
+                const statusColor = server.status === 'offline' ? 'text-red-400' : 'text-green-400';
+                const card = document.createElement('div');
+                card.className = 'bg-gray-800 p-5 rounded-xl shadow-lg flex flex-col justify-between transition-transform transform hover:scale-105';
+                card.innerHTML = `
+                    <div>
+                        <h2 class="text-xl font-bold text-white mb-3 truncate">${server.nama || 'Tanpa Nama'}</h2>
+                        <div class="space-y-2 text-sm text-gray-300">
+                            <p><strong>ID:</strong> ${server.id}</p>
+                            <p><strong>RAM:</strong> ${server.ram}</p>
+                            <p><strong>Disk:</strong> ${server.disk}</p>
+                            <p><strong>CPU:</strong> ${server.cpu}</p>
+                            <p><strong>Dibuat:</strong> ${server.created}</p>
+                            <p><strong>Status:</strong> <span class="font-semibold ${statusColor}">${server.status}</span></p>
+                        </div>
+                    </div>
+                    <button data-id="${server.id}" data-name="${server.nama || 'Tanpa Nama'}" class="delete-btn mt-4 w-full py-2 bg-red-600 hover:bg-red-700 rounded-md font-semibold transition-colors">
+                        Hapus Server
+                    </button>
+                `;
+                serverListContainer.appendChild(card);
+            });
+        }
+
+        // --- Fungsi utama untuk mengambil dan menampilkan data ---
+        async function fetchAndDisplayServers() {
+            loadingIndicator.classList.remove('hidden');
+            errorMessage.classList.add('hidden');
+            emptyMessage.classList.add('hidden');
+            serverListContainer.innerHTML = '';
+            
+            const listUrl = new URL('https://api.fandirr.my.id/panel/listpanel');
+            Object.keys(API_PARAMS).forEach(key => listUrl.searchParams.append(key, API_PARAMS[key]));
+
+            try {
+                const response = await fetch(listUrl);
+                if (!response.ok) {
+                    throw new Error(`Gagal mengambil data: ${response.statusText}`);
+                }
+                const data = await response.json();
+                
+                if (data.message) {
+                    const servers = parseServerMessage(data.message);
+                    renderServerList(servers);
+                } else {
+                    throw new Error('Format respon tidak valid.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                errorMessage.textContent = `Terjadi kesalahan: ${error.message}`;
+                errorMessage.classList.remove('hidden');
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        // --- Fungsi untuk menangani penghapusan server ---
+        async function handleDelete(serverId) {
+            const deleteUrl = new URL('https://api.fandirr.my.id/panel/delpanel');
+            Object.keys(API_PARAMS).forEach(key => deleteUrl.searchParams.append(key, API_PARAMS[key]));
+            deleteUrl.searchParams.append('id', serverId);
+            
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.textContent = 'Menghapus...';
+
+            try {
+                const response = await fetch(deleteUrl);
+                const data = await response.json();
+                if (response.ok && data.message) {
+                    showToast(data.message);
+                    await fetchAndDisplayServers(); // Muat ulang daftar setelah berhasil hapus
+                } else {
+                    throw new Error(data.message || 'Gagal menghapus server.');
+                }
+            } catch (error) {
+                console.error('Error saat menghapus:', error);
+                showToast(error.message, true);
+            } finally {
+                closeModal();
+                confirmDeleteBtn.disabled = false;
+                confirmDeleteBtn.textContent = 'Ya, Hapus';
+            }
+        }
+        
+        // --- Fungsi untuk membuka dan menutup modal ---
+        function openModal(id, name) {
+            serverIdToDelete = id;
+            modalText.textContent = `Apakah Anda yakin ingin menghapus server "${name}" (ID: ${id})? Tindakan ini tidak dapat diurungkan.`;
+            deleteModal.classList.remove('hidden');
+            setTimeout(() => {
+                modalBackdrop.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeModal() {
+            modalBackdrop.classList.add('opacity-0');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                deleteModal.classList.add('hidden');
+                serverIdToDelete = null;
+            }, 300);
+        }
+
+        // --- Event Listeners ---
+        refreshButton.addEventListener('click', fetchAndDisplayServers);
+
+        serverListContainer.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('delete-btn')) {
+                const id = e.target.dataset.id;
+                const name = e.target.dataset.name;
+                openModal(id, name);
+            }
+        });
+
+        cancelDeleteBtn.addEventListener('click', closeModal);
+        confirmDeleteBtn.addEventListener('click', () => {
+            if (serverIdToDelete) {
+                handleDelete(serverIdToDelete);
+            }
+        });
+        deleteModal.addEventListener('click', (e) => {
+            if (e.target === deleteModal) {
+                closeModal();
+            }
+        });
+
+        // --- Panggilan Awal ---
+        fetchAndDisplayServers();
+    });
+    </script>
+</body>
+</html>
