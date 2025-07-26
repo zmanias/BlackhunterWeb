@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Panel Pterodactyl</title>
+    <!-- Memuat Tailwind CSS untuk styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuat Font Inter dari Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Menggunakan font Inter sebagai default */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Style untuk spinner loading */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-md">
+        <!-- Bagian Verifikasi Token -->
+        <div id="token-section" class="bg-gray-800 p-8 rounded-xl shadow-2xl">
+            <h1 class="text-2xl font-bold text-center mb-6">Verifikasi Token</h1>
+            <p class="text-center text-gray-400 mb-6">Silakan masukkan token untuk melanjutkan.</p>
+            <form id="token-form">
+                <input type="password" id="token-input" placeholder="Masukkan Token Anda" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                <button type="submit" class="w-full mt-4 p-3 bg-blue-600 hover:bg-blue-700 rounded-md font-semibold transition-colors duration-300">
+                    Verifikasi
+                </button>
+                <p></p>
+                <p class="text-center text-gray-400 mb-6">Gapunya Tokenn Hubungi Nomer Di Bawah Ini<br>
+                https://wa.me/60143757643</p>
+            </form>
+            <p id="token-message" class="text-center mt-4 text-sm"></p>
+        </div>
+
+        <!-- Bagian Pembuatan Panel (tersembunyi secara default) -->
+        <div id="creator-section" class="hidden bg-gray-800 p-8 rounded-xl shadow-2xl">
+            <h1 class="text-2xl font-bold text-center mb-6">Create Panel Pterodactyl</h1>
+            <form id="create-form">
+                <!-- Input Username -->
+                <div class="mb-4">
+                    <label for="username" class="block mb-2 text-sm font-medium text-gray-300">Username</label>
+                    <input type="text" id="username" name="username" required placeholder="Contoh: hunteraja" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <!-- Pilihan Plan -->
+                <div class="mb-6">
+                    <label for="plan" class="block mb-2 text-sm font-medium text-gray-300">Pilih Plan</label>
+                    <select id="plan" name="plan" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        <!-- Opsi plan akan diisi oleh JavaScript -->
+                    </select>
+                </div>
+                <!-- Tombol Submit -->
+                <button type="submit" id="create-button" class="w-full p-3 bg-green-600 hover:bg-green-700 rounded-md font-semibold transition-colors duration-300">
+                    Buat Server
+                </button>
+            </form>
+        </div>
+
+        <!-- Bagian Loading dan Hasil -->
+        <div id="status-section" class="hidden mt-6 text-center">
+            <!-- Indikator Loading -->
+            <div id="loading-indicator" class="hidden flex justify-center items-center flex-col">
+                <div class="loader"></div>
+                <p class="mt-4 text-gray-300">Sedang membuat server, mohon tunggu...</p>
+            </div>
+            <!-- Tampilan Hasil -->
+            <div id="result-section" class="hidden bg-gray-800 p-6 rounded-xl shadow-2xl">
+                 <h2 class="text-xl font-bold mb-4 text-green-400">Server Berhasil Dibuat!</h2>
+                 <!-- Menggunakan <pre> untuk menjaga format teks dari API -->
+                 <pre id="result-info" class="text-left bg-gray-900 p-4 rounded-md whitespace-pre-wrap text-sm leading-relaxed"></pre>
+                 <button id="copy-button" class="w-full mt-4 p-3 bg-indigo-600 hover:bg-indigo-700 rounded-md font-semibold transition-colors duration-300">
+                    Salin Informasi Akun
+                 </button>
+            </div>
+             <!-- Tampilan Error -->
+            <div id="error-section" class="hidden bg-red-900 border border-red-700 p-4 rounded-xl">
+                <h2 class="text-xl font-bold mb-2 text-red-300">Terjadi Kesalahan</h2>
+                <p id="error-message" class="text-red-300"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Referensi Elemen DOM ---
+            const tokenSection = document.getElementById('token-section');
+            const creatorSection = document.getElementById('creator-section');
+            const statusSection = document.getElementById('status-section');
+            
+            const tokenForm = document.getElementById('token-form');
+            const tokenInput = document.getElementById('token-input');
+            const tokenMessage = document.getElementById('token-message');
+
+            const createForm = document.getElementById('create-form');
+            const planSelect = document.getElementById('plan');
+            const usernameInput = document.getElementById('username');
+            
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const resultSection = document.getElementById('result-section');
+            const resultInfo = document.getElementById('result-info');
+            const copyButton = document.getElementById('copy-button');
+            const errorSection = document.getElementById('error-section');
+            const errorMessage = document.getElementById('error-message');
+
+            // --- Data dan Konfigurasi ---
+            const planSpecs = {
+                "1gb": { ram: "1000", disk: "1000", cpu: "40" },
+                "2gb": { ram: "2000", disk: "1000", cpu: "60" },
+                "3gb": { ram: "3000", disk: "2000", cpu: "80" },
+                "4gb": { ram: "4000", disk: "2000", cpu: "100" },
+                "5gb": { ram: "5000", disk: "3000", cpu: "120" },
+                "6gb": { ram: "6000", disk: "3000", cpu: "140" },
+                "7gb": { ram: "7000", disk: "4000", cpu: "160" },
+                "8gb": { ram: "8000", disk: "4000", cpu: "180" },
+                "9gb": { ram: "9000", disk: "5000", cpu: "200" },
+                "10gb": { ram: "10000", disk: "5000", cpu: "220" },
+                "unli": { ram: "0", disk: "0", cpu: "0" },
+                "unlimited": { ram: "0", disk: "0", cpu: "0" }
+            };
+            
+            // --- Fungsi untuk mengisi pilihan plan ---
+            function populatePlans() {
+                for (const planName in planSpecs) {
+                    const option = document.createElement('option');
+                    option.value = planName;
+                    // Membuat teks lebih mudah dibaca, contoh: "1gb" -> "1GB Plan"
+                    option.textContent = `${planName.toUpperCase()} Plan`;
+                    planSelect.appendChild(option);
+                }
+            }
+            
+            // --- Fungsi untuk menampilkan pesan ---
+            function showMessage(element, text, isError = false) {
+                element.textContent = text;
+                element.className = isError 
+                    ? 'text-center mt-4 text-sm text-red-400' 
+                    : 'text-center mt-4 text-sm text-green-400';
+            }
+
+            // --- Event Listener untuk Form Token ---
+            tokenForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const userToken = tokenInput.value.trim();
+                if (!userToken) {
+                    showMessage(tokenMessage, 'Token tidak boleh kosong.', true);
+                    return;
+                }
+
+                showMessage(tokenMessage, 'Memverifikasi token...');
+                
+                try {
+                    const response = await fetch('https://api.fandirr.my.id/api/files/tokencpanel.json');
+                    if (!response.ok) {
+                        throw new Error(`Gagal mengambil token. Status: ${response.status}`);
+                    }
+                    const data = await response.json();
+
+                    // API mengembalikan JSON dalam bentuk string di field 'content'
+                    const content = JSON.parse(data.content);
+                    const correctToken = content.token;
+
+                    if (userToken === correctToken) {
+                        showMessage(tokenMessage, 'Verifikasi berhasil!', false);
+                        setTimeout(() => {
+                            tokenSection.classList.add('hidden');
+                            creatorSection.classList.remove('hidden');
+                        }, 1000);
+                    } else {
+                        showMessage(tokenMessage, 'Token yang Anda masukkan salah.', true);
+                    }
+                } catch (error) {
+                    console.error('Error saat verifikasi token:', error);
+                    showMessage(tokenMessage, 'Terjadi kesalahan saat menghubungi server.', true);
+                }
+            });
+
+            // --- Event Listener untuk Form Pembuatan Server ---
+            createForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Sembunyikan hasil/error sebelumnya dan tampilkan loading
+                statusSection.classList.remove('hidden');
+                loadingIndicator.classList.remove('hidden');
+                resultSection.classList.add('hidden');
+                errorSection.classList.add('hidden');
+
+                const username = usernameInput.value.trim();
+                const plan = planSelect.value;
+                
+                // Parameter yang sudah ditentukan
+                const params = new URLSearchParams({
+                    plan: plan,
+                    domain: 'https://private.blackhunter.my.id',
+                    plta: 'ptla_mfkq1OtMZnZJMyLmYdH4IoFaUXDRmn1vI8oQE6df2O0',
+                    egg: '15',
+                    nestid: '5',
+                    loc: '1',
+                    username: username
+                });
+                
+                const apiUrl = `https://api.fandirr.my.id/panel/create-server?${params.toString()}`;
+
+                try {
+                    const response = await fetch(apiUrl);
+                    const data = await response.json();
+
+                    loadingIndicator.classList.add('hidden');
+
+                    if (data.status === 'success' && data.data) {
+                        resultInfo.textContent = data.data.info;
+                        resultSection.classList.remove('hidden');
+                    } else {
+                        // Menampilkan pesan error dari API jika ada
+                        errorMessage.textContent = data.message || 'Gagal membuat server. Respon tidak valid.';
+                        errorSection.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error('Error saat membuat server:', error);
+                    loadingIndicator.classList.add('hidden');
+                    errorMessage.textContent = 'Terjadi kesalahan jaringan. Periksa koneksi Anda.';
+                    errorSection.classList.remove('hidden');
+                }
+            });
+
+            // --- Event Listener untuk Tombol Salin ---
+            copyButton.addEventListener('click', () => {
+                const textToCopy = resultInfo.textContent;
+                // Menggunakan document.execCommand untuk kompatibilitas yang lebih luas
+                const textArea = document.createElement('textarea');
+                textArea.value = textToCopy;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    copyButton.textContent = 'Berhasil Disalin!';
+                    setTimeout(() => {
+                        copyButton.textContent = 'Salin Informasi Akun';
+                    }, 2000);
+                } catch (err) {
+                    console.error('Gagal menyalin teks: ', err);
+                    copyButton.textContent = 'Gagal Menyalin';
+                }
+                document.body.removeChild(textArea);
+            });
+
+            // --- Inisialisasi Awal ---
+            populatePlans();
+        });
+    </script>
+</body>
+</html>
